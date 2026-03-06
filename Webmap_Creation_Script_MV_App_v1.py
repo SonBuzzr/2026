@@ -4,11 +4,11 @@ import json
 
 # GLOBAL VARIABLES & CONFIGURATION
 LAC_FEATURE_ID = "309bb51e0c0740c0b38488046a844a2d"
-UTILITY = "ALECTRA"
+UTILITY = "VIDEOTRON"
 ARCGIS_CONNECTION = "home"
 
 # Update the LAC areas separated by comma to create webmap
-LAC_AREAS = ["HN01", "GN01"]
+LAC_AREAS = ["GW01"]
 
 MIN_SCALE = 1000000 # Cities
 MAX_SCALE = 10000 # Streets
@@ -42,16 +42,16 @@ def Search_AGOL(gis_conn, Search_Query, Feature_Type):
         Search_Result = gis_conn.content.search(query=Search_Text, max_items=1)
         
         if not Search_Result:
-            print(f"   [-] {Search_Query} ({Feature_Type}) - Layer not found in AGOL.")
+            print(f"[-] ! {Search_Query} ({Feature_Type}) ! -> Layer not found in AGOL.\n")
             return None
         
         # We extract the single item here
         Searched_Item = Search_Result[0]
-        print(f"   [+] Found: {Searched_Item.title}")
+        print(f" Searching for '{Search_Query}' - ({Feature_Type}) :   \n   Found: -- {Searched_Item.title} --\n")
         return Searched_Item
     
     except Exception as e:
-        print (f" Error Searching Layers: '{e}'")
+        print (f" \nError Searching Layers: '{e}'")
         return None
 
 # Function to format the title text   
@@ -84,11 +84,11 @@ def Get_Or_Create_Folder(gis_conn, folder_name):
             
     if target_folder_id:
         # 2. Use the ID to get the actual Folder OBJECT
-        print(f"[*] Found existing folder: {folder_name}")
+        print(f"\n [*] Found existing folder: {folder_name}")
         return gis_conn.content.folders.get(target_folder_id)
     
     # If not found, create it (create returns the Folder object automatically)
-    print(f"[*] Creating new folder: {folder_name}")
+    print(f"\n [*] Creating new folder: {folder_name}")
     return gis_conn.content.folders.create(folder_name)
 
 # Function to create webmap using the search result layers.
@@ -161,9 +161,9 @@ def Create_WebMap(gis_conn, FL, GENERAL_LANDBASE, FEATURE_NETWORK_SEARCH, TILE_N
             ],
             "title": Format_Title(Landbase_item.title)
         }
-        print("   [+] Successfully set the Vector Tile service as the Web Map basemap.")
+        print("   [+] Successfully set the Vector Tile service as the Web Map basemap.\n")
     else:
-        print(f"   [!] Warning: Could not find '{UTILITY}' Vector Tile Service. Using fallback Topographic basemap.")    
+        print(f"   [!] Warning: Could not find '{UTILITY}' Vector Tile Service. Using fallback Topographic basemap.\n")    
 
     if GENERAL_LANDBASE:
         General_layer = {
@@ -180,41 +180,64 @@ def Create_WebMap(gis_conn, FL, GENERAL_LANDBASE, FEATURE_NETWORK_SEARCH, TILE_N
         print(f"   [+] Successfully added Map Image Layer: '{GENERAL_LANDBASE.title}'")
     
     # Add Map Image Layer (Dynamic Map Service)
-    # if MAP_IMAGE_SEARCH:
-    #     map_layer = {
-    #         "id": f"MapService_{MAP_IMAGE_SEARCH.id}",
-    #         "layerType": "ArcGISMapServiceLayer",
-    #         "url": MAP_IMAGE_SEARCH.url,
-    #         "itemId": MAP_IMAGE_SEARCH.id,
-    #         "title": Format_Title(MAP_IMAGE_SEARCH.title),
-    #         "visibility": True,
-    #         "opacity": 1
-    #     }
-    #     webmap_data["operationalLayers"].append(map_layer)
-    #     print(f"   [+] Successfully added Map Image Layer: '{MAP_IMAGE_SEARCH.title}'")
-
-    # Add Feature Layer 
-    if  FEATURE_NETWORK_SEARCH:
-        Feature_Network_item = FEATURE_NETWORK_SEARCH
-
-        Network_Feature_Layer = {
-            "id": f"FeatureLayer_{Feature_Network_item.id}",
-            "layerType": "ArcGISFeatureLayer",
-            "type": "ArcGISFeatureLayer",
-            "url": Feature_Network_item.url,
-            "itemId": Feature_Network_item.id,
-            "title": Format_Title(Feature_Network_item.title),
+    if MAP_IMAGE_SEARCH:
+        map_layer = {
+            "id": f"MapService_{MAP_IMAGE_SEARCH.id}",
+            "layerType": "ArcGISMapServiceLayer",
+            "url": MAP_IMAGE_SEARCH.url,
+            "itemId": MAP_IMAGE_SEARCH.id,
+            "title": Format_Title(MAP_IMAGE_SEARCH.title),
             "visibility": True,
-            "opacity": 1,
-
+            "opacity": 1
         }
+        webmap_data["operationalLayers"].append(map_layer)
+        print(f"   [+] Successfully added Map Image Layer: '{MAP_IMAGE_SEARCH.title}'")
+        
 
-        # Append it to the operational layers list so it sits above the basemap
-        webmap_data["operationalLayers"].append(Network_Feature_Layer)
-        print(f"Successfully added '{Feature_Network_item.title}' as an operational layer.")
+    # Add Feature Layer (Enable this for loading feature layers)
+    # Add Feature Layer as a Group
+    
+    # if FEATURE_NETWORK_SEARCH:
+    #     Feature_Network_item = FEATURE_NETWORK_SEARCH
 
-    else:
-        print(f"Warning: Could not find '{UTILITY}' Vector Tile Service.")   
+    #     # 1. Construct the Parent Group Layer
+    #     group_layer = {
+    #         "id": f"GroupLayer_{Feature_Network_item.id}",
+    #         "layerType": "GroupLayer",
+    #         "title": Format_Title(Feature_Network_item.title),
+    #         "visibility": True,
+    #         "opacity": 1,
+    #         "itemId": Feature_Network_item.id, 
+    #         "layers": [] 
+    #     }
+
+    #     # 2. Loop through all sublayers IN REVERSE ORDER to fix the stacking
+    #     for sublayer in reversed(Feature_Network_item.layers):
+    #         sublayer_index = sublayer.properties.get('id', 0)
+    #         sublayer_name = sublayer.properties.get('name', f"Layer_{sublayer_index}")
+
+    #         child_layer = {
+    #             "id": f"FeatureLayer_{Feature_Network_item.id}_{sublayer_index}",
+    #             "layerType": "ArcGISFeatureLayer",
+    #             "url": sublayer.url, 
+    #             "title": sublayer_name, 
+    #             "visibility": True,
+    #             "opacity": 1
+    #         }
+
+    #         # Append the child layer to the Group Layer
+    #         group_layer["layers"].append(child_layer)
+
+    #     # Add the entire Group Layer to the Web Map's operational layers
+    #     if "operationalLayers" not in webmap_data:
+    #         webmap_data["operationalLayers"] = []
+            
+    #     webmap_data["operationalLayers"].append(group_layer)
+        
+    #     print(f"   [+] Successfully added '{Feature_Network_item.title}' as a Group Layer.")
+
+    # else:
+    #     print(f"   [!] Warning: Could not find '{UTILITY}' Feature Service.")
 
     # Add Tile Layer 
     if  TILE_NETWORK_SEARCH:
@@ -234,16 +257,16 @@ def Create_WebMap(gis_conn, FL, GENERAL_LANDBASE, FEATURE_NETWORK_SEARCH, TILE_N
 
         # Append it to the operational layers list so it sits above the basemap
         webmap_data["operationalLayers"].append(Network_Tile_Layer)
-        print(f"Successfully added '{Network_item.title}' as an operational layer.")
+        print(f"   [+] Successfully added '{Network_item.title}' as an operational layer.")
 
     else:
-        print(f"Warning: Could not find '{UTILITY}' Vector Tile Service.")
+        print(f"   [!] Warning: Could not find '{UTILITY}' Vector Tile Service.")
 
     target_folder = Get_Or_Create_Folder(gis_conn, "Web Maps")
 
     # Create and Save the Web Map Item
     item_properties = {
-        "title": f"TEST Data Webmap - {LAC_CODE}",
+        "title": f"{query_string} - {LAC_CODE}",
         "type": "Web Map",
         "snippet": f"Filter applied: {LAC_CODE}. Custom Vector Tile Basemap applied.", 
         "tags": ["LAC", "Automation", "Basemap", UTILITY],
@@ -252,9 +275,9 @@ def Create_WebMap(gis_conn, FL, GENERAL_LANDBASE, FEATURE_NETWORK_SEARCH, TILE_N
 
     new_item = target_folder.add(item_properties)
 
-    print(f"   [+] Successfully created Web Map for {LAC_CODE}!")
-    print(f"   [+] Item ID: {new_item.id}")
-    print(f"   [+] URL: {new_item.homepage}")
+    print(f"\n   [+] Successfully created Web Map for {UTILITY} {LAC_CODE}!")
+    # print(f"   [+] Item ID: {new_item.id}")
+    # print(f"   [+] URL: {new_item.homepage}")
 
 
 # Main Execution Block
@@ -288,11 +311,11 @@ if __name__ == "__main__":
 
                     # Searching for Network feature and tile layers                    
                     FEATURE_NETWORK_SEARCH = Search_AGOL(gis, f"{SEARCH_UTILITY} Network {SEARCH_LAC}", "Feature Service")
-                    TILE_NETWORK_SEARCH = Search_AGOL(gis, f"{SEARCH_UTILITY} Network {SEARCH_LAC}", "Vector Tile Service")
+                    TILE_NETWORK_SEARCH = Search_AGOL(gis, f"{SEARCH_UTILITY} Network {SEARCH_LAC} VTPK", "Vector Tile Service")
 
                     # Searching for Landbase feature and tile layers
                     FEATURE_LANDBASE_SEARCH = Search_AGOL(gis, f"{SEARCH_UTILITY} Landbase {SEARCH_LAC}", "Feature Service")
-                    TILE_LANDBASE_SEARCH = Search_AGOL(gis, f"{SEARCH_UTILITY} Landbase {SEARCH_LAC}", "Vector Tile Service")
+                    TILE_LANDBASE_SEARCH = Search_AGOL(gis, f"{SEARCH_UTILITY} Landbase {SEARCH_LAC} VTPK", "Vector Tile Service")
 
                     # Calling function to create webmap
                     Create_WebMap(
@@ -306,7 +329,7 @@ if __name__ == "__main__":
                         query_string)
 
                 except Exception as e:
-                    print(f"Feature and Tile layers not found: {e}")
+                    print(f"\n One of the Feature and Tile layers not found: {e}")
 
     except Exception as e:
         print(f"An error occurred while log in: {e}")
